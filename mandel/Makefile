@@ -1,3 +1,9 @@
+##
+# \file   mandel/Makefile
+# \brief  Makefile for Mandelbrot program
+# \author Dietmar Muscholik <d.muscholik@t-online.de>
+# \date   2016-07-16
+#         latest update
 
 CFLAGS=-INDK:include_h -f8 -c2 -ww -I:src/ilbm
 #LIBS=-lm8 -lc
