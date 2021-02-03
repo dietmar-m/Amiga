@@ -1,0 +1,70 @@
+/*******************************************************************************************************************
+* lprm hostname printername [usernamess] [jobnumbers]
+*
+* 5) remove job
+*    remove by user or by job number
+*    syntax: \5printer person [users ...] [jobs ...]\n
+*
+* users is string
+* jobs are integers
+*
+*******************************************************************************************************************/
+
+/************************/
+/**CHANGE          HERE**/
+/************************/
+/*username = 'utzinger'*/
+/************************/
+
+Hostname=getclip('LPD_HOST')
+PrI=getclip('LPD_PRINTER')
+username=getclip('USER')
+
+options failat 10
+
+signal on halt
+signal on ioerr
+signal on break_c
+
+if arg() > 0 & arg(1) = '?' then call usage 
+
+/*
+parse arg Hostname PrI Options
+*/
+parse arg jobs
+
+say 'Removed jobs of printer ' || PrI ' on ' || Hostname  ':'
+
+/* Open printer tcp connection  and file to send */
+
+If ~Open(pr, 'TCP:' || Hostname || '/printer', 'W') Then Do; Say '*** Service not present'; Exit 10; End
+
+/* Init remote printer daemon to remove files */
+
+/*
+writeln(pr,d2c(5) || PrI || ' ' || username || Options)
+*/
+writeln(pr,d2c(5) || PrI || ' ' || username || ' ' jobs)
+thisline = readln(pr)
+say thisline
+do until eof(pr)
+ thisline = readln(pr)
+ say thisline
+end
+call close pr
+exit 0
+
+/* ----------------------------------------------------------------------- */
+/* Error Handling */
+halt:
+ioerr:
+break_c:
+call close pr
+exit 10
+
+/* ----------------------------------------------------------------------- */
+usage:
+/*	say "Usage: lprm hostname printername [usernames] [jobnumbers] "*/
+	say "Usage: lprm [jobnumbers] "
+	say
+	exit 0

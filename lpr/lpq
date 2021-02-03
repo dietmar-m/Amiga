@@ -1,0 +1,68 @@
+/*******************************************************************************************************************
+* lpq hostname printername
+*
+* 3) display queue (short)
+*    display que
+*    syntax: \3printer [users ...] [jobs ...]\n
+*            read from tcp
+* 4) display queue (long)
+*    display que
+*    syntax: \3printer [users ...] [jobs ...]\n
+*            read from tcp
+*
+* users is string
+* jobs ar integers
+*
+*******************************************************************************************************************/
+
+Hostname=getclip('LPD_HOST')
+PrI=getclip('LPD_PRINTER')
+
+options failat 10
+
+signal on halt
+signal on ioerr
+signal on break_c
+
+/*
+if arg() < 1 | arg(1) = '?' then call usage 
+parse arg Hostname PrI Options
+*/
+if arg() > 0 & arg(1) = '?' then call usage 
+
+/* parse var Options file Options */
+
+say 'Statistics of printer ' || PrI || ' on ' || Hostname ':'
+
+/* Open printer tcp connection  and file to send */
+
+If ~Open(pr, 'TCP:' || Hostname || '/printer', 'W') Then Do; Say '*** Service not present'; Exit 10; End
+
+/* Init remote printer daemon to accept files */
+
+writeln(pr,d2c(3) || PrI)
+/* chr=readch(pr,1) */
+/*  if chr ~= d2c(0) then Do; Say '*** Unknown remote printer: ' || c2b(chr);    Exit 10; End */
+thisline = readln(pr)
+say thisline
+do until eof(pr)
+ thisline = readln(pr)
+ say thisline
+end
+call close pr
+exit 0
+
+/* ----------------------------------------------------------------------- */
+/* Error Handling */
+halt:
+ioerr:
+break_c:
+call close pr
+exit 10
+
+/* ----------------------------------------------------------------------- */
+usage:
+/*	say "Usage: lpq hostname printername"*/
+	say "Usage: lpq hostname printername"
+	say
+	exit 0

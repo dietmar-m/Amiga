@@ -1,0 +1,4 @@
+rxset HOSTNAME=<your hostname>
+rxset USER=<your username>
+rxset LPD_HOST=<name of the print server>
+rxset LPD_PRINTER=<name of the printer>

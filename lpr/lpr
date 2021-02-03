@@ -1,0 +1,188 @@
+/*******************************************************************************************************************
+* lpr hostname printername file
+* this software currently only supports sending files to a printer daemon
+*
+* 2) print  a file
+*    send the file and a control file
+*    syntax: \2printer\n
+*            ack
+*            \3size_in_bytes datafilename
+*            ack
+*            send datafile
+*            ack
+*            \2size_in_bytes coontrolfilename
+*            ack
+*            send controlfile
+*
+*            \1 reset or abort
+*            datafilename:    dfA || 3 digits || hostname
+*            controlfilename: cfA || 3 digits || hostname
+*
+* The control file consits of:
+*
+* H || myhostname
+* P || username
+* J || file
+* C || myhostname
+* L || username
+* fdfA || num || myhostname
+* UdfA || num || myhostname
+* N || file)
+*
+* all available commands for lpd are
+*
+*	S -- "stat info" for symbolic link protection
+*	J -- "job name" on banner page
+*	C -- "class name" on banner page
+*	L -- "literal" user's name to print on banner
+*	T -- "title" for pr
+*	H -- "host name" of machine where lpr was done
+*	P -- "person" user's login name
+*	I -- "indent" amount to indent output
+*       f -- "file name" name of text file to print
+*	l -- "file name" text file with control chars
+*	p -- "file name" text file to print with pr(1)
+*	t -- "file name" troff(1) file to print
+*	n -- "file name" ditroff(1) file to print
+*	d -- "file name" dvi file to print
+*	g -- "file name" plot(1G) file to print
+*	v -- "file name" plain raster file to print
+*	c -- "file name" cifplot file to print
+*	1 -- "R font file" for troff
+*	2 -- "I font file" for troff
+*	3 -- "B font file" for troff
+*	4 -- "S font file" for troff
+*	N -- "name" of file (used by lpq)
+*	U -- "unlink" name of file to remove
+*	     (after we print it. (Pass 2 only)).
+*	M -- "mail" to user when done printing
+*
+*******************************************************************************************************************/
+
+
+myhostname=getclip('HOSTNAME')
+username=getclip('USER')
+Hostname=getclip('LPD_HOST')
+PrI=getclip('LPD_PRINTER')
+
+/************************/
+
+options failat 10
+
+signal on halt
+signal on ioerr
+signal on break_c
+
+if arg() ~= 1 | arg(1) = '?' then call usage 
+
+parse arg file
+
+say 'Printing file ' || file || ' on ' || Hostname || ' printer ' || PrI
+
+
+/* Open printer tcp connection  and file to send */
+
+If ~Open(pr, 'TCP:' || Hostname || '/printer', 'W') Then Do; Say '*** Service not present';             Exit 10; End
+If ~Open(fl, file, 'R') Then                             Do; Say '*** Cannot open file'; call close pr; Exit 10; End
+
+/* Init remote printer daemon to accept files */
+
+writeln(pr,d2c(2) || PrI)
+chr=readch(pr,1)
+if chr ~= d2c(0) then Do
+ Say '*** Unknown remote printer or no authentification: ' || c2b(chr)
+ do until eof(pr)
+  thisline = readln(pr)
+  say thisline
+ end
+ Exit 10
+End
+
+/* produce authentic part of file name */
+num=right(time(s),3)
+
+/* send data file */
+
+size=seek(fl,0,'END') 
+say 'Size Data: ' || size || ' bytes'
+nr = seek(fl,0,'BEGIN')
+writeln(pr,d2c(3) || size || ' dfA' || num || myhostname)
+chr=readch(pr,1)
+if  chr ~= d2c(0) then Do
+ Say '*** Not enough space to print data file on remote host: ' || c2b(chr) 
+ do until eof(pr)
+  thisline = readln(pr)
+  say thisline
+ end
+ Exit 10
+End
+call writech(STDOUT, 'Packets of 64kBytes: ')
+thisline=readch(fl,65535)
+do until eof(fl)
+ call writech(pr,thisline)
+ thisline=readch(fl,65535)
+ call writech(STDOUT,'*')
+end 
+call writeln(STDOUT,'')
+call writech(pr,d2c(0))
+chr=readch(pr,1)
+if chr ~= d2c(0) then Do
+ Say '*** Remote host did not receive the data file correctly: ' || c2b(chr)
+ do until eof(pr)
+  thisline = readln(pr)
+  say thisline
+ end
+ Exit 10
+End
+
+/* send control file */
+
+/*csize=2*length(file) + 68*/
+csize=2+length(myhostname) + 2+length(username) + 10+2*length(num)+2*length(myhostname) + 2+length(file)
+
+say 'Size Control: ' || csize || 'bytes'
+writeln(pr,d2c(2) || csize || ' cfA' || num || myhostname)
+chr=readch(pr,1)
+if chr ~= d2c(0) then Do
+ Say '*** Not enough space to print control file on remote host: ' || c2b(chr)
+ do until eof(pr)
+  thisline = readln(pr)
+  say thisline
+ end
+ Exit 10
+End
+
+writeln(pr,'H' || myhostname)
+writeln(pr,'P' || username)
+writeln(pr,'fdfA' || num || myhostname)
+writeln(pr,'UdfA' || num || myhostname)
+writeln(pr,'N' || file)
+writech(pr,d2c(0))
+chr=readch(pr,1)
+if chr ~= d2c(0) then Do
+ Say '*** Remote host did not receive the control file correctly: ' || c2b(chr)
+ do until eof(pr)
+  thisline = readln(pr)
+  say thisline
+ end
+ Exit 10
+End
+
+call close fl; call close pr
+say 'File printed'
+exit 0
+
+/* ----------------------------------------------------------------------- */
+/* Error Handling */
+halt:
+ioerr:
+break_c:
+call close fl
+call close pr
+exit 10
+
+/* ----------------------------------------------------------------------- */
+usage:
+	say "Usage: lpr filename"
+	say
+	exit 0
