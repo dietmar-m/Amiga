@@ -24,13 +24,7 @@ signal on halt
 signal on ioerr
 signal on break_c
 
-/*
-if arg() < 1 | arg(1) = '?' then call usage 
-parse arg Hostname PrI Options
-*/
-if arg() > 0 & arg(1) = '?' then call usage 
-
-/* parse var Options file Options */
+if arg() > 0 then call usage 
 
 say 'Statistics of printer ' || PrI || ' on ' || Hostname ':'
 
@@ -41,8 +35,6 @@ If ~Open(pr, 'TCP:' || Hostname || '/printer', 'W') Then Do; Say '*** Service no
 /* Init remote printer daemon to accept files */
 
 writeln(pr,d2c(3) || PrI)
-/* chr=readch(pr,1) */
-/*  if chr ~= d2c(0) then Do; Say '*** Unknown remote printer: ' || c2b(chr);    Exit 10; End */
 thisline = readln(pr)
 say thisline
 do until eof(pr)
@@ -62,7 +54,6 @@ exit 10
 
 /* ----------------------------------------------------------------------- */
 usage:
-/*	say "Usage: lpq hostname printername"*/
-	say "Usage: lpq hostname printername"
+	say "Usage: lpq"
 	say
 	exit 0
